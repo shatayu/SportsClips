@@ -35,3 +35,6 @@ fullvideo/
 # Logs & caches
 *.log
 .cache/
+
+# Images
+images/
