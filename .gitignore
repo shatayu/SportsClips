@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.python-version
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Environment
+.env
+.env.*
+
+# Editors/OS
+.DS_Store
+.idea/
+.vscode/
+.history/
+
+# Project outputs and large media
+output/
+outputold/
+fullvideo/
+
+# Logs & caches
+*.log
+.cache/
