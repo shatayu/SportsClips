@@ -8,6 +8,8 @@ import sys
 import time
 from typing import Dict, Optional, Tuple
 
+import llm_client
+
 
 # Reuse helpers from the existing script for video I/O and trimming
 from nfl_highlight_extractor import (
@@ -53,28 +55,11 @@ def get_video_duration_seconds(video_path: str) -> float:
     return duration
 
 
-def encode_frame_to_data_url(frame_bgr) -> str:
-    import base64
-    import cv2
-
-    ok, buf = cv2.imencode(".jpg", frame_bgr)
-    if not ok:
-        raise RuntimeError("Failed to encode frame to JPEG")
-    b64 = base64.b64encode(buf.tobytes()).decode("ascii")
-    return f"data:image/jpeg;base64,{b64}"
-
-
 def gpt_read_quarter_clock(frame_bgr) -> Tuple[Optional[str], Optional[str]]:
     """Return (quarter, clock_str) via a single GPT vision call.
     quarter in {Q1,Q2,Q3,Q4,OT} or None; clock_str as MM:SS or None.
     """
-    api_key = load_openai_api_key_from_env()
-    if not api_key:
-        raise RuntimeError(
-            "OPENAI_API_KEY not found in environment or .env; cannot use ChatGPT vision."
-        )
-
-    # Crop to bottom 20% of the frame before encoding/sending to the model
+    # Crop to bottom 20% of the frame before sending to the model
     def _crop_bottom_20_percent(src_bgr):
         height, width = src_bgr.shape[:2]
         if height <= 0 or width <= 0:
@@ -85,7 +70,6 @@ def gpt_read_quarter_clock(frame_bgr) -> Tuple[Optional[str], Optional[str]]:
         return src_bgr[top_row_index:height, 0:width]
 
     cropped_bgr = _crop_bottom_20_percent(frame_bgr)
-    data_url = encode_frame_to_data_url(cropped_bgr)
     user_prompt = (
         "You are reading the broadcast scoreboard from an NFL TV frame. "
         "If visible and readable, return ONLY this JSON with no extra text: "
@@ -94,55 +78,17 @@ def gpt_read_quarter_clock(frame_bgr) -> Tuple[Optional[str], Optional[str]]:
         '{"quarter":null,"clock":null}. '
         "Do not add commentary."
     )
+    # Call out to the LLM client
+    def _inc_attempt():
+        global gpt_call_count
+        gpt_call_count += 1
 
-    content = [
-        {"type": "text", "text": user_prompt},
-        {"type": "image_url", "image_url": {"url": data_url}},
-    ]
-
-    # Modern SDK with simple retry/backoff on rate limits (no legacy fallback)
-    text_response: Optional[str] = None
-    try:
-        try:
-            from openai import OpenAI, RateLimitError  # type: ignore
-        except Exception:
-            from openai import OpenAI  # type: ignore
-
-            class RateLimitError(Exception):
-                pass
-
-        client = OpenAI(api_key=api_key, timeout=20.0)
-        max_attempts = 6
-        base_sleep = 5.0
-        for attempt in range(1, max_attempts + 1):
-            try:
-                t0 = time.time()
-                # Count each actual API request attempt
-                global gpt_call_count
-                gpt_call_count += 1
-                resp = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": content}],
-                    temperature=0,
-                    max_tokens=40,
-                )
-                dt = (time.time() - t0) * 1000.0
-                text_response = (resp.choices[0].message.content or "").strip()
-                print(f"[vision] GPT call ok in {dt:.0f}ms", flush=True)
-                break
-            except RateLimitError as e:  # type: ignore
-                sleep_s = min(8.0, base_sleep * (2 ** (attempt - 1)))
-                print(
-                    f"[vision] rate limited (attempt {attempt}/{max_attempts}); backing off {sleep_s:.2f}s",
-                    flush=True,
-                )
-                time.sleep(sleep_s)
-            except Exception as e:
-                raise RuntimeError(f"ChatGPT vision call failed: {e}")
-        if text_response is None:
-            raise RuntimeError("ChatGPT vision call failed after retries")
-    except Exception as e:
-        raise
+    text_response = llm_client.vision_ask(
+        cropped_bgr,
+        user_prompt,
+        on_attempt=_inc_attempt,
+        model=os.getenv("VISION_MODEL", "gpt-4o-mini"),
+    )
 
     # Parse strict JSON if present; else try regex fallback
     quarter: Optional[str] = None

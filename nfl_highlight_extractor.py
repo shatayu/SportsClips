@@ -7,11 +7,11 @@ import re
 import shutil
 import sys
 import subprocess
-import base64
 import io
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Tuple
 
+import llm_client
 
 # ------------------------------
 # Utilities: dynamic dependency install
@@ -212,13 +212,6 @@ def sample_frame_from_video(video_path: str, ts_sec: float) -> Optional[object]:
     return frame
 
 
-def _encode_frame_to_data_url(frame_bgr: object) -> str:
-    import cv2
-    _, buf = cv2.imencode(".jpg", frame_bgr)
-    b64 = base64.b64encode(buf.tobytes()).decode("ascii")
-    return f"data:image/jpeg;base64,{b64}"
-
-
 def _parse_bbox_from_text(text: str) -> Optional[Tuple[float, float, float, float]]:
     """Parse (a, b, c, d) from model text; return floats if 4 numbers found."""
     if not text:
@@ -257,61 +250,19 @@ def infer_roi_via_chatgpt(frame_bgr: object) -> Optional[Tuple[float, float, flo
     Make one call to ChatGPT to infer bounding box for score+quarter.
     Returns ROI as fractional (x, y, w, h) in [0,1] or None on failure.
     """
-    api_key = load_openai_api_key_from_env()
-    if not api_key:
-        print("[ocr] OPENAI_API_KEY not found in environment/.env; skipping ROI inference.")
-        return None
-
-    data_url = _encode_frame_to_data_url(frame_bgr)
     prompt = (
         "given this frame, return the bounding box around the score and quarter only. "
         "just return the format (a, b, c, d) and nothing else"
     )
-
-    # Try new SDK first; fall back to legacy
-    text_response: Optional[str] = None
     try:
-        from openai import OpenAI  # type: ignore
-
-        client = OpenAI(api_key=api_key)
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": data_url}},
-                    ],
-                }
-            ],
-            temperature=0,
-            max_tokens=50,
+        text_response = llm_client.vision_ask(
+            frame_bgr,
+            prompt,
+            model=os.getenv("VISION_MODEL", "gpt-4o-mini"),
         )
-        text_response = (resp.choices[0].message.content or "").strip()
-    except Exception:
-        try:
-            import openai as openai_legacy  # type: ignore
-
-            openai_legacy.api_key = api_key
-            resp = openai_legacy.ChatCompletion.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": {"url": data_url}},
-                        ],
-                    }
-                ],
-                temperature=0,
-                max_tokens=50,
-            )
-            text_response = (resp["choices"][0]["message"]["content"] or "").strip()
-        except Exception as e2:
-            print(f"[ocr] ROI inference via ChatGPT failed: {e2}")
-            return None
+    except Exception as e2:
+        print(f"[ocr] ROI inference via ChatGPT failed: {e2}")
+        return None
 
     bbox = _parse_bbox_from_text(text_response or "")
     if not bbox:
