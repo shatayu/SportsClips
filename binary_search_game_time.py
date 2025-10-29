@@ -4,26 +4,13 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 import time
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import llm_client
-
-
-# Reuse helpers from the existing script for video I/O and trimming
-from nfl_highlight_extractor import (
-    ensure_dependencies,
-    load_openai_api_key_from_env,
-    sample_frame_from_video,
-    compute_game_elapsed,
-    parse_user_game_time,
-    ffmpeg_exists,
-    trim_video_ffmpeg,
-    trim_video_moviepy,
-    download_youtube_video,
-)
 
 
 # Global counter for ChatGPT API calls (counts each request attempt)
@@ -64,6 +51,267 @@ def ensure_local_video(
     if not os.path.exists(video_input):
         raise FileNotFoundError(f"Video not found: {video_input}")
     return video_input
+
+
+def ensure_package(pkg: str, import_name: Optional[str] = None) -> None:
+    """Ensure a Python package is installed."""
+    name = import_name or pkg
+    try:
+        __import__(name)
+        return
+    except Exception:
+        pass
+    print(f"[setup] Installing {pkg} ...", flush=True)
+    subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+
+
+def ensure_dependencies() -> None:
+    ensure_package("yt-dlp", "yt_dlp")
+    ensure_package("opencv-python", "cv2")
+    ensure_package("numpy")
+    ensure_package("openai")
+    ensure_package("python-dotenv", "dotenv")
+    ensure_package("moviepy")
+
+
+def download_youtube_video(
+    url: str,
+    out_dir: str,
+    cookies_from_browser: Optional[Union[str, Tuple[str, Optional[str], Optional[str], Optional[str]]]] = None,
+    cookies_file: Optional[str] = None,
+) -> str:
+    from yt_dlp import YoutubeDL
+
+    os.makedirs(out_dir, exist_ok=True)
+    preferred_format = (
+        "bestvideo[ext=mp4][protocol!=m3u8][protocol!=m3u8_native]"
+        "+bestaudio[ext=m4a][protocol!=m3u8][protocol!=m3u8_native]"
+        "/best[ext=mp4][protocol!=m3u8][protocol!=m3u8_native]"
+        "/bestvideo+bestaudio/best"
+    )
+    ydl_opts = {
+        "format": preferred_format,
+        "outtmpl": os.path.join(out_dir, "%(title)s.%(ext)s"),
+        "merge_output_format": "mp4",
+        "noprogress": False,
+        "quiet": False,
+        "nocheckcertificate": True,
+        "retries": 10,
+        "fragment_retries": 5,
+        "skip_unavailable_fragments": True,
+        "concurrent_fragment_downloads": 1,
+        "forceipv4": True,
+        "geo_bypass": True,
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+            "Accept-Language": "en-US,en;q=0.9",
+        },
+    }
+    if cookies_from_browser:
+        if isinstance(cookies_from_browser, (list, tuple)):
+            spec: List[Optional[str]] = list(cookies_from_browser)[:4]
+            while len(spec) < 4:
+                spec.append(None)
+            ydl_opts["cookiesfrombrowser"] = tuple(spec)
+        else:
+            ydl_opts["cookiesfrombrowser"] = (cookies_from_browser, None, None, None)
+    if cookies_file:
+        ydl_opts["cookiefile"] = cookies_file
+
+    attempt_specs = [
+        {"format": preferred_format, "extractor_args": {"youtube": {"player_client": ["web"]}}},
+        {"format": preferred_format, "extractor_args": {"youtube": {"player_client": ["android"]}}},
+        {"format": preferred_format, "extractor_args": {"youtube": {"player_client": ["ios"]}}},
+        {"format": "22/18/best[ext=mp4]/best", "extractor_args": {"youtube": {"player_client": ["web"]}}},
+        {"format": "bestvideo+bestaudio/best", "extractor_args": {"youtube": {"player_client": ["web"]}}},
+    ]
+
+    last_err: Optional[Exception] = None
+    for spec in attempt_specs:
+        opts = dict(ydl_opts)
+        opts.update(spec)
+        with YoutubeDL(opts) as ydl:
+            try:
+                info = ydl.extract_info(url, download=True)
+                if "requested_downloads" in info and info["requested_downloads"]:
+                    path = info["requested_downloads"][0].get("_filename")
+                else:
+                    title = info.get("title", "video")
+                    ext = info.get("ext", "mp4")
+                    path = os.path.join(out_dir, f"{title}.{ext}")
+                if not path or not os.path.exists(path) or os.path.getsize(path) == 0:
+                    raise RuntimeError("Downloaded file missing or empty after attempt")
+                if not path.lower().endswith(".mp4"):
+                    base, _ = os.path.splitext(path)
+                    mp4_path = base + ".mp4"
+                    if os.path.exists(mp4_path):
+                        path = mp4_path
+                return path
+            except Exception as err:
+                last_err = err
+                continue
+
+    raise RuntimeError(
+        "Failed to download video due to HTTP 403/NSIG or format access. "
+        "Try: --cookies-from-browser safari (or chrome), or --cookies <file>, or manually download and pass --video-path."
+    ) from last_err
+
+
+def sample_frame_from_video(video_path: str, ts_sec: float) -> Optional[object]:
+    try:
+        import cv2
+        import numpy as np  # noqa: F401
+    except Exception:
+        return None
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        return None
+    try_times = [max(0.0, ts_sec), max(0.0, ts_sec - 0.5), max(0.0, ts_sec + 0.5), 0.0]
+    frame = None
+    for t in try_times:
+        cap.set(cv2.CAP_PROP_POS_MSEC, t * 1000.0)
+        ret, f = cap.read()
+        if ret and f is not None:
+            frame = f
+            break
+    cap.release()
+    return frame
+
+
+def parse_quarter(text: str) -> Optional[str]:
+    t = text.lower()
+    patterns = [
+        r"\bq\s*([1-4])\b",
+        r"\b([1-4])\s*quarter\b",
+        r"\b(1st|2nd|3rd|4th)\b",
+        r"\bqtr\s*([1-4])\b",
+        r"\bot\b",
+    ]
+    for pat in patterns:
+        m = re.search(pat, t)
+        if m:
+            if m.group(0) == "ot" or (m.groups() and m.groups()[0] and m.groups()[0].lower() == "ot"):
+                return "OT"
+            g = m.groups()[0] if m.groups() else m.group(0)
+            g = str(g).lower()
+            mapping = {"1st": "Q1", "2nd": "Q2", "3rd": "Q3", "4th": "Q4"}
+            if g in mapping:
+                return mapping[g]
+            if g in {"1", "2", "3", "4"}:
+                return f"Q{g}"
+            if g == "ot":
+                return "OT"
+            if g.startswith("q") and len(g) == 2 and g[1] in "1234":
+                return g.upper()
+    return None
+
+
+def parse_game_clock(text: str) -> Optional[Tuple[str, int]]:
+    m = re.search(r"\b(\d{1,2}):(\d{2})\b", text)
+    if not m:
+        return None
+    mm = int(m.group(1))
+    ss = int(m.group(2))
+    if ss >= 60 or mm > 59:
+        return None
+    return (f"{mm:02d}:{ss:02d}", mm * 60 + ss)
+
+
+def quarter_order(quarter: str) -> int:
+    if quarter == "OT":
+        return 5
+    if quarter and quarter.startswith("Q") and len(quarter) == 2 and quarter[1] in "1234":
+        return int(quarter[1])
+    return 0
+
+
+def quarter_duration_seconds(quarter: str) -> int:
+    if quarter == "OT":
+        return 10 * 60
+    return 15 * 60
+
+
+def compute_game_elapsed(quarter: Optional[str], game_clock_sec: Optional[int]) -> Optional[int]:
+    if not quarter or game_clock_sec is None:
+        return None
+    q_idx = quarter_order(quarter)
+    if q_idx == 0:
+        return None
+    elapsed_prior = 0
+    for i in range(1, q_idx):
+        elapsed_prior += quarter_duration_seconds(f"Q{i}")
+    elapsed_this = quarter_duration_seconds(quarter) - game_clock_sec
+    return elapsed_prior + max(0, elapsed_this)
+
+
+def parse_user_game_time(s: str) -> Tuple[str, int]:
+    s_norm = s.strip().replace("\u2013", "-")
+    qm = re.search(r"\b(Q[1-4]|[1234](?:st|nd|rd|th)|OT)\b", s_norm, flags=re.IGNORECASE)
+    tm = re.search(r"\b(\d{1,2}):(\d{2})\b", s_norm)
+    if not qm or not tm:
+        raise ValueError("Invalid game time format. Use e.g. 'Q2 05:23' or '2nd 5:23'.")
+    q_raw = qm.group(1)
+    q = parse_quarter(q_raw) or q_raw.upper()
+    mm, ss = int(tm.group(1)), int(tm.group(2))
+    if ss >= 60 or mm > 59:
+        raise ValueError("Invalid clock time; expected MM:SS with SS<60 and MM<=59")
+    return q, mm * 60 + ss
+
+
+def ffmpeg_exists() -> bool:
+    try:
+        subprocess.run(["ffmpeg", "-version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        return True
+    except Exception:
+        return False
+
+
+def trim_video_ffmpeg(
+    input_path: str,
+    start_sec: float,
+    output_path: str,
+    duration: Optional[float] = None,
+    reencode: bool = False,
+) -> str:
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    cmd = ["ffmpeg", "-y", "-ss", f"{start_sec:.3f}", "-i", input_path]
+    if duration is not None and duration > 0:
+        cmd += ["-t", f"{duration:.3f}"]
+    if reencode:
+        cmd += [
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "20",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+        ]
+    else:
+        cmd += ["-c", "copy"]
+    cmd += [output_path]
+    subprocess.check_call(cmd)
+    return output_path
+
+
+def trim_video_moviepy(
+    input_path: str,
+    start_sec: float,
+    output_path: str,
+    duration: Optional[float] = None,
+) -> str:
+    from moviepy.editor import VideoFileClip
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with VideoFileClip(input_path) as clip:
+        end = clip.duration if duration is None else min(clip.duration, start_sec + duration)
+        sub = clip.subclip(start_sec, end)
+        sub.write_videofile(output_path, codec="libx264", audio_codec="aac")
+    return output_path
 
 
 def get_video_duration_seconds(video_path: str) -> float:
