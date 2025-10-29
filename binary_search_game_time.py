@@ -6,7 +6,8 @@ import os
 import re
 import sys
 import time
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import llm_client
 
@@ -21,11 +22,48 @@ from nfl_highlight_extractor import (
     ffmpeg_exists,
     trim_video_ffmpeg,
     trim_video_moviepy,
+    download_youtube_video,
 )
 
 
 # Global counter for ChatGPT API calls (counts each request attempt)
 gpt_call_count = 0
+
+
+def _is_url(value: str) -> bool:
+    if not value:
+        return False
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def ensure_local_video(
+    video_input: str,
+    download_dir: str,
+    *,
+    cookies_from_browser: Optional[Union[str, Tuple[str, Optional[str], Optional[str], Optional[str]]]] = None,
+    cookies_file: Optional[str] = None,
+) -> str:
+    """Return a local video path, downloading remote URLs when needed."""
+    if _is_url(video_input):
+        print(f"[download] Detected URL input → downloading via yt-dlp", flush=True)
+        os.makedirs(download_dir, exist_ok=True)
+        browser_spec = cookies_from_browser
+        if isinstance(browser_spec, str):
+            browser_spec = (browser_spec, None, None, None)
+        local_path = download_youtube_video(
+            video_input,
+            download_dir,
+            cookies_from_browser=browser_spec,
+            cookies_file=cookies_file,
+        )
+        if not local_path or not os.path.exists(local_path):
+            raise RuntimeError("Download reported success but file is missing")
+        print(f"[download] Saved to {local_path}", flush=True)
+        return local_path
+    if not os.path.exists(video_input):
+        raise FileNotFoundError(f"Video not found: {video_input}")
+    return video_input
 
 
 def get_video_duration_seconds(video_path: str) -> float:
@@ -339,7 +377,11 @@ def main():
             "via binary search using ChatGPT vision, then output a 5s clip."
         )
     )
-    parser.add_argument("--video-path", required=True, help="Local video file path")
+    parser.add_argument(
+        "--video-path",
+        required=True,
+        help="Local video file path or HTTP/YouTube URL",
+    )
     parser.add_argument(
         "--game-time",
         required=True,
@@ -369,14 +411,45 @@ def main():
         default=12,
         help="Maximum binary search iterations",
     )
+    parser.add_argument(
+        "--cookies-from-browser",
+        type=str,
+        choices=["chrome", "firefox", "safari", "edge"],
+        default=None,
+        help="Pass cookies from your browser for age/region gated videos",
+    )
+    parser.add_argument(
+        "--cookies",
+        type=str,
+        default=None,
+        help="Path to a Netscape cookie file for download authentication",
+    )
+    parser.add_argument(
+        "--download-dir",
+        type=str,
+        default=None,
+        help="Directory to place downloaded videos (default: output dir)",
+    )
 
     args = parser.parse_args()
 
     ensure_dependencies()
 
-    video_path = args.video_path
-    if not os.path.exists(video_path):
-        raise FileNotFoundError(f"Video not found: {video_path}")
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    download_dir = args.download_dir or args.output_dir
+    cookies_browser = args.cookies_from_browser.strip() if args.cookies_from_browser else None
+    if cookies_browser:
+        browser_spec = (cookies_browser, None, None, None)
+    else:
+        browser_spec = None
+
+    video_path = ensure_local_video(
+        args.video_path,
+        download_dir,
+        cookies_from_browser=browser_spec,
+        cookies_file=args.cookies,
+    )
 
     # Parse target game time
     tq, tsec = parse_user_game_time(args.game_time)

@@ -103,7 +103,15 @@ def download_youtube_video(
     }
     if cookies_from_browser:
         # Accept common names: chrome, firefox, safari, edge
-        ydl_opts["cookiesfrombrowser"] = cookies_from_browser
+        # yt-dlp expects a tuple like (browser, profile, keyring, container)
+        # Passing a plain string will be treated as an iterable of characters.
+        if isinstance(cookies_from_browser, (list, tuple)):
+            spec = list(cookies_from_browser)[:4]
+            while len(spec) < 4:
+                spec.append(None)
+            ydl_opts["cookiesfrombrowser"] = tuple(spec)
+        else:
+            ydl_opts["cookiesfrombrowser"] = (cookies_from_browser, None, None, None)
     if cookies_file:
         ydl_opts["cookiefile"] = cookies_file
     # Attempt sequence: try multiple player clients, then progressive MP4, then best
