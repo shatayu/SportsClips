@@ -1,0 +1,199 @@
+{
+  "folders": {
+    "2024_nfl_season_banana/cbs": {
+      "default": {
+        "box": {
+          "height": 0.054323948019802004,
+          "width": 0.11592601614699327,
+          "x": 0.551855686247216,
+          "y": 0.8558632425742574
+        },
+        "manual": false,
+        "source": "user-default",
+        "updated_at": "2025-10-29T22:50:03.298098Z"
+      },
+      "images": {
+        "chicago_bears_vs_detroit_lions_2024_week_13_game_highlights_chicago_bears_vs_detroit_lions_1.png": {
+          "height": 0.054323948019802004,
+          "width": 0.11592601614699327,
+          "x": 0.551855686247216,
+          "y": 0.8558632425742574
+        },
+        "chicago_bears_vs_detroit_lions_2024_week_13_game_highlights_chicago_bears_vs_detroit_lions_2.png": {
+          "height": 0.054323948019802004,
+          "width": 0.11592601614699327,
+          "x": 0.551855686247216,
+          "y": 0.8558632425742574
+        },
+        "chicago_bears_vs_detroit_lions_2024_week_13_game_highlights_chicago_bears_vs_detroit_lions_3.png": {
+          "height": 0.054323948019802004,
+          "width": 0.11592601614699327,
+          "x": 0.551855686247216,
+          "y": 0.8558632425742574
+        },
+        "chicago_bears_vs_detroit_lions_2024_week_13_game_highlights_chicago_bears_vs_detroit_lions_4.png": {
+          "height": 0.054323948019802004,
+          "width": 0.11592601614699327,
+          "x": 0.551855686247216,
+          "y": 0.8558632425742574
+        },
+        "chicago_bears_vs_detroit_lions_2024_week_13_game_highlights_chicago_bears_vs_detroit_lions_5.png": {
+          "height": 0.054323948019802004,
+          "width": 0.11592601614699327,
+          "x": 0.551855686247216,
+          "y": 0.8558632425742574
+        }
+      }
+    },
+    "2024_nfl_season_banana/fox": {
+      "default": {
+        "box": {
+          "height": 0.043726794554455495,
+          "width": 0.09922657989977729,
+          "x": 0.37298162583518935,
+          "y": 0.8904625618811881
+        },
+        "manual": false,
+        "source": "user-default",
+        "updated_at": "2025-10-29T22:51:28.312261Z"
+      },
+      "images": {
+        "new_york_giants_vs_dallas_cowboys_game_highlights_nfl_2024_season_week_13_new_york_giants_vs_dallas_cowboys_1.png": {
+          "height": 0.043726794554455495,
+          "width": 0.09922657989977729,
+          "x": 0.37298162583518935,
+          "y": 0.8904625618811881
+        },
+        "new_york_giants_vs_dallas_cowboys_game_highlights_nfl_2024_season_week_13_new_york_giants_vs_dallas_cowboys_2.png": null,
+        "new_york_giants_vs_dallas_cowboys_game_highlights_nfl_2024_season_week_13_new_york_giants_vs_dallas_cowboys_3.png": {
+          "height": 0.036355198019802026,
+          "width": 0.09773454899777284,
+          "x": 0.44445121102449886,
+          "y": 0.8939356435643564
+        },
+        "new_york_giants_vs_dallas_cowboys_game_highlights_nfl_2024_season_week_13_new_york_giants_vs_dallas_cowboys_4.png": {
+          "height": 0.043726794554455495,
+          "width": 0.09922657989977729,
+          "x": 0.40159120963251677,
+          "y": 0.8915377475247525
+        },
+        "new_york_giants_vs_dallas_cowboys_game_highlights_nfl_2024_season_week_13_new_york_giants_vs_dallas_cowboys_5.png": {
+          "height": 0.043726794554455495,
+          "width": 0.09922657989977729,
+          "x": 0.37298162583518935,
+          "y": 0.8904625618811881
+        }
+      },
+      "overrides": {
+        "new_york_giants_vs_dallas_cowboys_game_highlights_nfl_2024_season_week_13_new_york_giants_vs_dallas_cowboys_2.png": {
+          "box": null,
+          "manual": true,
+          "source": "user-override-none",
+          "updated_at": "2025-10-29T22:56:49.735614Z"
+        },
+        "new_york_giants_vs_dallas_cowboys_game_highlights_nfl_2024_season_week_13_new_york_giants_vs_dallas_cowboys_3.png": {
+          "box": {
+            "height": 0.036355198019802026,
+            "width": 0.09773454899777284,
+            "x": 0.44445121102449886,
+            "y": 0.8939356435643564
+          },
+          "manual": true,
+          "source": "user-override",
+          "updated_at": "2025-10-29T22:51:14.902439Z"
+        },
+        "new_york_giants_vs_dallas_cowboys_game_highlights_nfl_2024_season_week_13_new_york_giants_vs_dallas_cowboys_4.png": {
+          "box": {
+            "height": 0.043726794554455495,
+            "width": 0.09922657989977729,
+            "x": 0.40159120963251677,
+            "y": 0.8915377475247525
+          },
+          "manual": true,
+          "source": "user-override",
+          "updated_at": "2025-10-29T22:51:40.302730Z"
+        }
+      }
+    },
+    "2025_nfl_season_potato/cbs": {
+      "default": {
+        "box": {
+          "height": 0.04585396039603962,
+          "width": 0.11029718819599116,
+          "x": 0.42909155762806234,
+          "y": 0.9032564975247525
+        },
+        "manual": false,
+        "source": "user-default",
+        "updated_at": "2025-10-29T22:51:57.509869Z"
+      },
+      "images": {
+        "houston_texans_vs_los_angeles_rams_game_highlights_nfl_2025_season_week_1_houston_texans_vs_los_angeles_rams_1.png": {
+          "height": 0.04585396039603962,
+          "width": 0.11029718819599116,
+          "x": 0.42909155762806234,
+          "y": 0.9032564975247525
+        },
+        "houston_texans_vs_los_angeles_rams_game_highlights_nfl_2025_season_week_1_houston_texans_vs_los_angeles_rams_2.png": {
+          "height": 0.04585396039603962,
+          "width": 0.11029718819599116,
+          "x": 0.42909155762806234,
+          "y": 0.9032564975247525
+        },
+        "houston_texans_vs_los_angeles_rams_game_highlights_nfl_2025_season_week_1_houston_texans_vs_los_angeles_rams_3.png": {
+          "height": 0.04585396039603962,
+          "width": 0.11029718819599116,
+          "x": 0.42909155762806234,
+          "y": 0.9032564975247525
+        },
+        "houston_texans_vs_los_angeles_rams_game_highlights_nfl_2025_season_week_1_houston_texans_vs_los_angeles_rams_4.png": {
+          "height": 0.04585396039603962,
+          "width": 0.11029718819599116,
+          "x": 0.42909155762806234,
+          "y": 0.9032564975247525
+        },
+        "houston_texans_vs_los_angeles_rams_game_highlights_nfl_2025_season_week_1_houston_texans_vs_los_angeles_rams_5.png": {
+          "height": 0.04585396039603962,
+          "width": 0.11029718819599116,
+          "x": 0.42909155762806234,
+          "y": 0.9032564975247525
+        },
+        "miami_dolphins_vs_indianapolis_colts_game_highlights_2025_nfl_season_week_1_miami_dolphins_vs_indianapolis_colts_1.png": {
+          "height": 0.04585396039603962,
+          "width": 0.11029718819599116,
+          "x": 0.42909155762806234,
+          "y": 0.9032564975247525
+        },
+        "miami_dolphins_vs_indianapolis_colts_game_highlights_2025_nfl_season_week_1_miami_dolphins_vs_indianapolis_colts_2.png": null,
+        "miami_dolphins_vs_indianapolis_colts_game_highlights_2025_nfl_season_week_1_miami_dolphins_vs_indianapolis_colts_3.png": {
+          "height": 0.04585396039603962,
+          "width": 0.11029718819599116,
+          "x": 0.42909155762806234,
+          "y": 0.9032564975247525
+        },
+        "miami_dolphins_vs_indianapolis_colts_game_highlights_2025_nfl_season_week_1_miami_dolphins_vs_indianapolis_colts_4.png": {
+          "height": 0.04585396039603962,
+          "width": 0.11029718819599116,
+          "x": 0.42909155762806234,
+          "y": 0.9032564975247525
+        },
+        "miami_dolphins_vs_indianapolis_colts_game_highlights_2025_nfl_season_week_1_miami_dolphins_vs_indianapolis_colts_5.png": {
+          "height": 0.04585396039603962,
+          "width": 0.11029718819599116,
+          "x": 0.42909155762806234,
+          "y": 0.9032564975247525
+        }
+      },
+      "overrides": {
+        "miami_dolphins_vs_indianapolis_colts_game_highlights_2025_nfl_season_week_1_miami_dolphins_vs_indianapolis_colts_2.png": {
+          "box": null,
+          "manual": true,
+          "source": "user-override-none",
+          "updated_at": "2025-10-29T22:52:04.163324Z"
+        }
+      }
+    }
+  },
+  "saved_at": "2025-10-29T22:56:57.256379Z",
+  "version": 1
+}

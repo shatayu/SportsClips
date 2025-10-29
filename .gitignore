@@ -31,6 +31,7 @@ htmlcov/
 output/
 outputold/
 fullvideo/
+downloads/
 
 # Logs & caches
 *.log
@@ -38,3 +39,5 @@ fullvideo/
 
 # Images
 images/
+images_test/
+images_test_annotated/
